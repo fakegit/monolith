@@ -1,42 +1,120 @@
 [package]
 name = "monolith"
-version = "2.6.1"
+version = "3.0.0"
 authors = [
-    "Sunshine <sunshine@uberspace.net>",
+    "Sunshine <snshn@tutanota.com>",
     "Mahdi Robatipoor <mahdi.robatipoor@gmail.com>",
     "Emmanuel Delaborde <th3rac25@gmail.com>",
     "Emi Simpson <emi@alchemi.dev>",
     "rhysd <lin90162@yahoo.co.jp>",
+    "Andriy Rakhnin <a@rakhnin.com>",
 ]
-edition = "2018"
-description = "CLI tool for saving web pages as a single HTML file"
+edition = "2024"
+description = "GUI/CLI tool and library for saving web pages as a single (M)HTML file"
 homepage = "https://github.com/Y2Z/monolith"
 repository = "https://github.com/Y2Z/monolith"
 readme = "README.md"
 keywords = ["web", "http", "html", "download", "command-line"]
 categories = ["command-line-utilities", "web-programming"]
 include = [
+    "LICENSE",
     "src/*.rs",
     "Cargo.toml",
+    "build.rs",
+    "assets/icon/icon-128.png",
+    "assets/icon/icon.ico",
+    "assets/scripts/replay.js",
 ]
-license = "CC0-1.0"
+license = "0BSD"
 
 [dependencies]
-atty = "0.2.14" # Used for highlighting network errors
-base64 = "0.13.0"
-chrono = "0.4.19" # Used for formatting creation timestamp
-clap = "2.33.3"
-cssparser = "0.28.1"
-encoding_rs = "0.8.28"
-html5ever = "0.24.1"
-regex = "1.5.4" # Used for parsing srcset and NOSCRIPT
-sha2 = "0.9.5" # Used for calculating checksums during integrity checks
-url = "2.2.2"
+base64 = "=0.23.1" # Used for integrity attributes
+brotli-decompressor = "=6.0.1" # Used for reading WARC archives
+chrono = "=0.4.45" # Used for formatting timestamps
+clap = { version = "=4.6.7", features = [
+    "derive",
+], optional = true } # Used for processing CLI arguments
+ctrlc = { version = "=3.5.2", features = [
+    "termination",
+], optional = true } # Used for cleaning up after being interrupted
+cssparser = "=0.38.0" # Used for dealing with CSS
+dataurl = "=0.3.0" # Used for creating and parsing data URLs, and detecting media types
+directories = { version = "=6.0.0", optional = true } # Used for GUI
+eframe = { version = "=0.36.2", default-features = false, features = [
+    "default_fonts",
+    "glow",
+    "wayland",
+    "x11",
+], optional = true } # Used for GUI
+encoding_rs = "=0.8.42" # Used for parsing and converting document charsets
+flate2 = "=1.1.10" # Used for reading WARC archives
+html5ever = "=0.39.0" # Used for all things DOM
+markup5ever_rcdom = "=0.39.0" # Used for manipulating DOM
+sha2 = "=0.11.0" # Used for calculating checksums during integrity checks
+rayon = "=1.12.0" # Used for thread pooling
+redb = "=4.3.0" # Used for on-disk caching of remote assets
+rfd = { version = "=0.17.2", optional = true } # Used for GUI file dialogs
+serde_json = "=1.0.154" # Used for talking to browsers
+tempfile = "=3.27.0" # Used for on-disk caching of remote assets and browser profiles
+tungstenite = { version = "=0.30.0", default-features = false, features = [
+    "handshake",
+], optional = true } # Used for talking to browsers
+url = "=2.5.8" # Used for parsing URLs
 
+# Used for making network requests
 [dependencies.reqwest]
-version = "0.11.4"
+version = "=0.13.5"
 default-features = false
-features = ["default-tls", "blocking", "gzip"]
+features = [
+    "blocking",
+    "gzip",
+    "brotli",
+    "deflate",
+    "rustls"
+]
+
+[target.'cfg(unix)'.dependencies]
+libc = { version = "=0.2.190", optional = true } # Used for ending browsers along with their helper processes
+
+[build-dependencies]
+winresource = { version = "=0.1.31", optional = true } # Used for embedding the icon into Windows executables
 
 [dev-dependencies]
-assert_cmd = "1.0.7"
+assert_cmd = "=2.2.2"
+
+[features]
+default = ["browser", "cli"]
+browser = ["dep:libc", "dep:tungstenite"] # Make it possible to render pages in browsers before saving them
+cli = ["clap", "ctrlc"] # Build a CLI tool that includes main() function
+gui = [
+    "ctrlc",
+    "directories",
+    "eframe",
+    "rfd",
+    "winresource",
+] # Build a GUI executable that includes main() function
+vendored-openssl = [] # Deprecated, being kept as a remnant (probably until 2.15.x/3.x.x)
+
+[lib]
+name = "monolith"
+path = "src/lib.rs"
+test = false
+doctest = false
+
+[[bin]]
+name = "monolith"
+path = "src/main.rs"
+test = false
+required-features = ["cli"]
+
+[[bin]]
+name = "monolith-gui"
+path = "src/gui.rs"
+test = false
+required-features = ["gui"]
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"

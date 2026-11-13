@@ -1,15 +1,20 @@
-#[macro_use]
-extern crate clap;
-
-#[macro_use]
-mod macros;
-
+#[cfg(feature = "browser")]
+pub mod browser;
+pub mod cache;
+pub mod cookies;
+pub mod core;
+pub mod cors;
+pub mod csp;
 pub mod css;
+pub mod har;
 pub mod html;
 pub mod js;
-pub mod opts;
+pub mod mhtml;
+pub mod net;
+pub mod replay;
+pub mod session;
+pub mod simple;
+pub mod source_maps;
 pub mod url;
-pub mod utils;
-
-#[cfg(test)]
-pub mod tests;
+pub mod warc;
+pub mod webarchive;

@@ -1,0 +1,234 @@
+//  ██████╗  █████╗ ███████╗███████╗██╗███╗   ██╗ ██████╗
+//  ██╔══██╗██╔══██╗██╔════╝██╔════╝██║████╗  ██║██╔════╝
+//  ██████╔╝███████║███████╗███████╗██║██╔██╗ ██║██║  ███╗
+//  ██╔═══╝ ██╔══██║╚════██║╚════██║██║██║╚██╗██║██║   ██║
+//  ██║     ██║  ██║███████║███████║██║██║ ╚████║╚██████╔╝
+//  ╚═╝     ╚═╝  ╚═╝╚══════╝╚══════╝╚═╝╚═╝  ╚═══╝ ╚═════╝
+
+#[cfg(test)]
+mod passing {
+    use assert_cmd::prelude::*;
+    use encoding_rs::Encoding;
+    use std::env;
+    use std::path::MAIN_SEPARATOR;
+    use std::process::{Command, Stdio};
+
+    #[test]
+    fn properly_save_document_with_gb2312() {
+        let cwd = env::current_dir().unwrap();
+        let cwd_normalized: String = cwd.to_str().unwrap().replace("\\", "/");
+        let mut cmd = crate::cli::monolith();
+        let out = cmd
+            .arg(format!(
+                "tests{s}_data_{s}unusual_encodings{s}gb2312.html",
+                s = MAIN_SEPARATOR
+            ))
+            .output()
+            .unwrap();
+        let file_url_protocol: &str = if cfg!(windows) { "file:///" } else { "file://" };
+
+        // STDERR should contain only the target file
+        assert_eq!(
+            String::from_utf8_lossy(&out.stderr),
+            format!(
+                "{file}{cwd}/tests/_data_/unusual_encodings/gb2312.html\n",
+                file = file_url_protocol,
+                cwd = cwd_normalized,
+            )
+        );
+
+        // STDOUT should contain original document without any modifications
+        let s: String;
+        if let Some(encoding) = Encoding::for_label(b"gb2312") {
+            let (string, _, _) = encoding.decode(&out.stdout);
+            s = crate::cli::without_metadata(string.as_bytes());
+        } else {
+            s = crate::cli::without_metadata(&out.stdout);
+        }
+        assert_eq!(
+            s,
+            r##"<html><head>
+    <meta http-equiv="content-type" content="text/html;charset=GB2312">
+    <title>近七成人减少线下需求　银行数字化转型提速--经济·科技--人民网 </title>
+<meta name="robots" content="none"></head>
+<body>
+    <h1>近七成人减少线下需求　银行数字化转型提速</h1>
+
+
+</body></html>
+"##
+        );
+
+        // Exit code should be 0
+        out.assert().code(0);
+    }
+
+    #[test]
+    fn properly_save_document_with_gb2312_from_stdin() {
+        let echo = Command::new("cat")
+            .arg(format!(
+                "tests{s}_data_{s}unusual_encodings{s}gb2312.html",
+                s = MAIN_SEPARATOR
+            ))
+            .stdout(Stdio::piped())
+            .output()
+            .unwrap();
+
+        let mut cmd = crate::cli::monolith();
+        cmd.write_stdin(echo.stdout);
+        let out = cmd.arg("-").output().unwrap();
+
+        // STDERR should be empty
+        assert_eq!(String::from_utf8_lossy(&out.stderr), "");
+
+        // STDOUT should contain HTML created out of STDIN
+        let s: String;
+        if let Some(encoding) = Encoding::for_label(b"gb2312") {
+            let (string, _, _) = encoding.decode(&out.stdout);
+            s = crate::cli::without_metadata(string.as_bytes());
+        } else {
+            s = crate::cli::without_metadata(&out.stdout);
+        }
+        assert_eq!(
+            s,
+            r##"<html><head>
+    <meta http-equiv="content-type" content="text/html;charset=GB2312">
+    <title>近七成人减少线下需求　银行数字化转型提速--经济·科技--人民网 </title>
+<meta name="robots" content="none"></head>
+<body>
+    <h1>近七成人减少线下需求　银行数字化转型提速</h1>
+
+
+</body></html>
+"##
+        );
+
+        // Exit code should be 0
+        out.assert().code(0);
+    }
+
+    #[test]
+    fn properly_save_document_with_gb2312_custom_charset() {
+        let cwd = env::current_dir().unwrap();
+        let cwd_normalized: String = cwd.to_str().unwrap().replace("\\", "/");
+        let mut cmd = crate::cli::monolith();
+        let out = cmd
+            .arg("-E")
+            .arg("utf8")
+            .arg(format!(
+                "tests{s}_data_{s}unusual_encodings{s}gb2312.html",
+                s = MAIN_SEPARATOR
+            ))
+            .output()
+            .unwrap();
+        let file_url_protocol: &str = if cfg!(windows) { "file:///" } else { "file://" };
+
+        // STDERR should contain only the target file
+        assert_eq!(
+            String::from_utf8_lossy(&out.stderr),
+            format!(
+                "{file}{cwd}/tests/_data_/unusual_encodings/gb2312.html\n",
+                file = file_url_protocol,
+                cwd = cwd_normalized,
+            )
+        );
+
+        // STDOUT should contain original document without any modifications
+        assert_eq!(
+            crate::cli::without_metadata(&out.stdout).to_string(),
+            r#"<html><head>
+    <meta http-equiv="content-type" content="text/html;charset=utf8">
+    <title>近七成人减少线下需求　银行数字化转型提速--经济·科技--人民网 </title>
+<meta name="robots" content="none"></head>
+<body>
+    <h1>近七成人减少线下需求　银行数字化转型提速</h1>
+
+
+</body></html>
+"#
+        );
+
+        // Exit code should be 0
+        out.assert().code(0);
+    }
+
+    #[test]
+    fn properly_save_document_with_gb2312_custom_charset_bad() {
+        let mut cmd = crate::cli::monolith();
+        let out = cmd
+            .arg("-E")
+            .arg("utf0")
+            .arg(format!(
+                "tests{s}_data_{s}unusual_encodings{s}gb2312.html",
+                s = MAIN_SEPARATOR
+            ))
+            .output()
+            .unwrap();
+
+        // STDERR should contain error message
+        assert_eq!(
+            String::from_utf8_lossy(&out.stderr),
+            "Error: unknown encoding \"utf0\"\n"
+        );
+
+        // STDOUT should be empty
+        assert_eq!(crate::cli::without_metadata(&out.stdout).to_string(), "");
+
+        // Exit code should be 1
+        out.assert().code(1);
+    }
+}
+
+//  ███████╗ █████╗ ██╗██╗     ██╗███╗   ██╗ ██████╗
+//  ██╔════╝██╔══██╗██║██║     ██║████╗  ██║██╔════╝
+//  █████╗  ███████║██║██║     ██║██╔██╗ ██║██║  ███╗
+//  ██╔══╝  ██╔══██║██║██║     ██║██║╚██╗██║██║   ██║
+//  ██║     ██║  ██║██║███████╗██║██║ ╚████║╚██████╔╝
+//  ╚═╝     ╚═╝  ╚═╝╚═╝╚══════╝╚═╝╚═╝  ╚═══╝ ╚═════╝
+
+#[cfg(test)]
+mod failing {
+    use assert_cmd::prelude::*;
+    use std::env;
+    use std::path::MAIN_SEPARATOR;
+
+    #[test]
+    fn change_iso88591_to_utf8_to_properly_display_html_entities() {
+        let cwd = env::current_dir().unwrap();
+        let cwd_normalized: String = cwd.to_str().unwrap().replace("\\", "/");
+        let mut cmd = crate::cli::monolith();
+        let out = cmd
+            .arg(format!(
+                "tests{s}_data_{s}unusual_encodings{s}iso-8859-1.html",
+                s = MAIN_SEPARATOR
+            ))
+            .output()
+            .unwrap();
+        let file_url_protocol: &str = if cfg!(windows) { "file:///" } else { "file://" };
+
+        // STDERR should contain only the target file
+        assert_eq!(
+            String::from_utf8_lossy(&out.stderr),
+            format!(
+                "{file}{cwd}/tests/_data_/unusual_encodings/iso-8859-1.html\n",
+                file = file_url_protocol,
+                cwd = cwd_normalized,
+            )
+        );
+
+        // STDOUT should contain original document but with UTF-8 charset
+        assert_eq!(
+            crate::cli::without_metadata(&out.stdout),
+            r##"<html><head>
+        <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <meta name="robots" content="none"></head>
+    <body>� Some Company
+
+</body></html>
+"##
+        );
+
+        // Exit code should be 0
+        out.assert().code(0);
+    }
+}

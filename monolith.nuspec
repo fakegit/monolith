@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
   <metadata>
     <id>monolith</id>
-    <version>2.4.0</version>
+    <version>3.0.0</version>
     <title>Monolith</title>
     <authors>Sunshine, Mahdi Robatipoor, Emmanuel Delaborde, Emi Simpson, rhysd</authors>
     <projectUrl>https://github.com/Y2Z/monolith</projectUrl>
@@ -17,7 +17,7 @@ Unlike the conventional “Save page as”, monolith not only saves the target d
 
 If compared to saving websites using wget, this tool embeds all assets as data URLs and therefore lets browsers render the saved page exactly the way it was on the Internet, even when no network connection is available.
     </description>
-    <copyright>Public Domain</copyright>
+    <copyright>Copyright (C) 2017-2026 Monolith contributors</copyright>
     <language>en-US</language>
     <tags>scraping archiving</tags>
     <docsUrl>https://github.com/Y2Z/monolith/blob/master/README.md</docsUrl>

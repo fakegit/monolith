@@ -1,0 +1,204 @@
+//  ██████╗  █████╗ ███████╗███████╗██╗███╗   ██╗ ██████╗
+//  ██╔══██╗██╔══██╗██╔════╝██╔════╝██║████╗  ██║██╔════╝
+//  ██████╔╝███████║███████╗███████╗██║██╔██╗ ██║██║  ███╗
+//  ██╔═══╝ ██╔══██║╚════██║╚════██║██║██║╚██╗██║██║   ██║
+//  ██║     ██║  ██║███████║███████║██║██║ ╚████║╚██████╔╝
+//  ╚═╝     ╚═╝  ╚═╝╚══════╝╚══════╝╚═╝╚═╝  ╚═══╝ ╚═════╝
+
+#[cfg(test)]
+mod passing {
+    use assert_cmd::prelude::*;
+
+    use monolith::url::EMPTY_IMAGE_DATA_URL;
+
+    #[test]
+    fn isolate_data_url() {
+        let mut cmd = crate::cli::monolith();
+        let out = cmd
+            .arg("-I")
+            .arg("data:text/html,Hello%2C%20World!")
+            .output()
+            .unwrap();
+
+        // STDERR should be empty
+        assert_eq!(String::from_utf8_lossy(&out.stderr), "");
+
+        // STDOUT should contain isolated HTML
+        assert_eq!(
+            crate::cli::without_metadata(&out.stdout),
+            r#"<html><head><meta http-equiv="Content-Security-Policy" content="default-src 'unsafe-eval' 'unsafe-inline' data:;"><meta name="robots" content="none"></head><body>Hello, World!</body></html>
+"#
+        );
+
+        // Exit code should be 0
+        out.assert().code(0);
+    }
+
+    #[test]
+    fn remove_css_from_data_url() {
+        let mut cmd = crate::cli::monolith();
+        let out = cmd
+            .arg("-s")
+            .arg("data:text/html,<style>body{background-color:pink}</style>Hello")
+            .output()
+            .unwrap();
+
+        // STDERR should be empty
+        assert_eq!(String::from_utf8_lossy(&out.stderr), "");
+
+        // STDOUT should contain HTML with no CSS
+        assert_eq!(
+            crate::cli::without_metadata(&out.stdout),
+            r#"<html><head><meta http-equiv="Content-Security-Policy" content="style-src 'none';"><style></style><meta name="robots" content="none"></head><body>Hello</body></html>
+"#
+        );
+
+        // Exit code should be 0
+        out.assert().code(0);
+    }
+
+    #[test]
+    fn remove_fonts_from_data_url() {
+        let mut cmd = crate::cli::monolith();
+        let out = cmd
+            .arg("-f")
+            .arg("data:text/html,<style>@font-face { font-family: myFont; src: url(font.woff); }</style>Hi")
+            .output()
+            .unwrap();
+
+        // STDERR should be empty
+        assert_eq!(String::from_utf8_lossy(&out.stderr), "");
+
+        // STDOUT should contain HTML with no web fonts
+        assert_eq!(
+            crate::cli::without_metadata(&out.stdout),
+            r#"<html><head><meta http-equiv="Content-Security-Policy" content="font-src 'none';"><style></style><meta name="robots" content="none"></head><body>Hi</body></html>
+"#
+        );
+
+        // Exit code should be 0
+        out.assert().code(0);
+    }
+
+    #[test]
+    fn remove_frames_from_data_url() {
+        let mut cmd = crate::cli::monolith();
+        let out = cmd
+            .arg("-w")
+            .arg("frame,iframe")
+            .arg(r#"data:text/html,<iframe src="https://duckduckgo.com"></iframe>Hi"#)
+            .output()
+            .unwrap();
+
+        // STDERR should be empty
+        assert_eq!(String::from_utf8_lossy(&out.stderr), "");
+
+        // STDOUT should contain HTML with no iframes
+        assert_eq!(
+            crate::cli::without_metadata(&out.stdout),
+            r#"<html><head><meta http-equiv="Content-Security-Policy" content="frame-src 'none'; child-src 'none';"><meta name="robots" content="none"></head><body><iframe></iframe>Hi</body></html>
+"#
+        );
+
+        // Exit code should be 0
+        out.assert().code(0);
+    }
+
+    #[test]
+    fn remove_images_from_data_url() {
+        let mut cmd = crate::cli::monolith();
+        let out = cmd
+            .arg("-i")
+            .arg("data:text/html,<img src=\"https://google.com\"/>Hi")
+            .output()
+            .unwrap();
+
+        // STDERR should be empty
+        assert_eq!(String::from_utf8_lossy(&out.stderr), "");
+
+        // STDOUT should contain HTML with no images
+        assert_eq!(
+            crate::cli::without_metadata(&out.stdout),
+            format!(
+                r#"<html><head><meta http-equiv="Content-Security-Policy" content="img-src data:;"><meta name="robots" content="none"></head><body><img src="{empty_image}">Hi</body></html>
+"#,
+                empty_image = EMPTY_IMAGE_DATA_URL,
+            )
+        );
+
+        // Exit code should be 0
+        out.assert().code(0);
+    }
+
+    #[test]
+    fn remove_js_from_data_url() {
+        let mut cmd = crate::cli::monolith();
+        let out = cmd
+            .arg("-j")
+            .arg("data:text/html,<script>alert(2)</script>Hi")
+            .output()
+            .unwrap();
+
+        // STDERR should be empty
+        assert_eq!(String::from_utf8_lossy(&out.stderr), "");
+
+        // STDOUT should contain HTML with no JS
+        assert_eq!(
+            crate::cli::without_metadata(&out.stdout),
+            r#"<html><head><meta http-equiv="Content-Security-Policy" content="script-src 'none'; object-src 'none';"><script></script><meta name="robots" content="none"></head><body>Hi</body></html>
+"#
+        );
+
+        // Exit code should be 0
+        out.assert().code(0);
+    }
+}
+
+//  ███████╗ █████╗ ██╗██╗     ██╗███╗   ██╗ ██████╗
+//  ██╔════╝██╔══██╗██║██║     ██║████╗  ██║██╔════╝
+//  █████╗  ███████║██║██║     ██║██╔██╗ ██║██║  ███╗
+//  ██╔══╝  ██╔══██║██║██║     ██║██║╚██╗██║██║   ██║
+//  ██║     ██║  ██║██║███████╗██║██║ ╚████║╚██████╔╝
+//  ╚═╝     ╚═╝  ╚═╝╚═╝╚══════╝╚═╝╚═╝  ╚═══╝ ╚═════╝
+
+#[cfg(test)]
+mod failing {
+    use assert_cmd::prelude::*;
+
+    #[test]
+    fn bad_input_data_url() {
+        let mut cmd = crate::cli::monolith();
+        let out = cmd.arg("data:,Hello%2C%20World!").output().unwrap();
+
+        // STDERR should be empty
+        assert_eq!(String::from_utf8_lossy(&out.stderr), "");
+
+        // STDOUT should contain text
+        assert_eq!(crate::cli::without_metadata(&out.stdout), "Hello, World!");
+
+        // Exit code should be 0
+        out.assert().code(0);
+    }
+
+    #[test]
+    fn security_disallow_local_assets_within_data_url_targets() {
+        let mut cmd = crate::cli::monolith();
+        let out = cmd
+            .arg(r#"data:text/html,%3Cscript%20src="src/tests/data/basic/local-script.js"%3E%3C/script%3E"#)
+            .output()
+            .unwrap();
+
+        // STDERR should be empty
+        assert_eq!(String::from_utf8_lossy(&out.stderr), "");
+
+        // STDOUT should contain HTML without contents of local JS file
+        assert_eq!(
+            crate::cli::without_metadata(&out.stdout),
+            r#"<html><head><script></script><meta name="robots" content="none"></head><body></body></html>
+"#
+        );
+
+        // Exit code should be 0
+        out.assert().code(0);
+    }
+}
